@@ -4,13 +4,12 @@ from anytree import NodeMixin, Node, RenderTree
 from anytree.exporter import DotExporter
 
 def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
-    ## Input: x (2D array) = data matrix; y (1D array) = binary class labels;
+    # INPUT: x (2D array) = data matrix; y (1D array) = binary class labels;
     # nmin (int) = min # observations a node must contain for it to be allowed to split;
     # minleaf (int) = min # observations required for a leaf node; nfeat (int) = # features to be considered for each split
-    ## Output: tree object based on best splits of gini index impurity reduction function
+    # OUTPUT: tree object based on best splits of gini index impurity reduction function
 
-    #print(f"x= \n {x}")
-    #print(f"y = {y}")
+    print("GROWING CLASSIFICATION TREE")
     # each node has a name, list of indices (records), and "leaf" boolean attribute
     root = Node('root', indices = np.arange(0, x.shape[0]), leaf = False)
     nodelist = [root]
@@ -18,7 +17,7 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     while nodelist: # while nodelist not empty
         split_nr += 1
         current_node = nodelist.pop(0)  # get node from nodelist TODO: choose random node or first on list?
-        print(f"\n PROCESSING NEW NODE {current_node} on subtree: x = \n {x[current_node.indices, :]} \n y = {y[current_node.indices]}")
+        #print(f"\n PROCESSING NEW NODE {current_node}")# on subtree: x = \n {x[current_node.indices, :]} \n y = {y[current_node.indices]}")
         # TODO: skip this if nfeat not specified? Adjust optional nfeat in tree_grow def
         if nfeat:
             feat_list = random.sample(list(np.arange(0, x.shape[1])), k=nfeat)  # randomly draw nfeat col indices from # cols of x
@@ -41,7 +40,7 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
                 current_node.prediction = 0
         else: # choose split with highest impurity reduction:
             poss_splits.sort(key = lambda x: x[1], reverse = True) # sort poss_splits list by the 2nd column (reduction values) in descending order
-            # TODO: add tiebraker in case of 2 features with identical impurity reduction -> keep list of features previsouly used for splitting?
+            # TODO: add tiebraker in case of 2 features with identical impurity reduction -> look up previous features via parent?
             feat = poss_splits[0][0]
             split_val = poss_splits[0][2]
             current_node.split_feat = feat # add feature (col nr of x) and split value by which node will be split
@@ -49,22 +48,21 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
             # from indices in current nodes (current_node.indices), select those where value in column f > split_val
             indices_left = current_node.indices[x[current_node.indices,feat] > split_val]
             left = Node(f"L{split_nr}", parent=current_node, indices=indices_left)
+            current_node.left = left # add link to left child node
             # if child node too small for splitting or we have a pure node (impurity=0), make it a leaf node:
             if ( len(indices_left) < nmin) or ( impurity(y[indices_left]) == 0):
                 left.leaf = True
                 left.y = y[indices_left]
-                #left = Node(f"L{split_nr}", parent=current_node, indices=indices_left, leaf=True, y=y[indices_left])
                 if sum( (left.y) / len(left.y) ) > 0.5:
                     left.prediction = 1
                 else:
                     left.prediction = 0
-            else: # make child node and add to nodelist
+            else: # add to nodelist
                 left.leaf = False
                 nodelist.append(left)
-                #print(f"left child node {left} added to nodelist = \n {nodelist}")
             indices_right = np.setdiff1d(current_node.indices, indices_left)  # indices_right = indices in current node not in indices_left
             right = Node(f"R{split_nr}", parent=current_node, indices=indices_right)
-            #print(f"indices_right = {indices_right}")#, {type(indices_right)}, {len(indices_right)}")
+            current_node.right = right # add link to right child node
             if ( len(indices_right) < nmin) or ( impurity(y[indices_right]) == 0 ): # make child leaf node
                 right.leaf = True
                 right.y = y[indices_right]
@@ -72,17 +70,37 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
                     right.prediction = 1
                 else:
                     right.prediction = 0
-                #right = Node(f"R{split_nr}", parent=current_node, indices = indices_right, leaf = True, y= y[indices_right])
-                #print(f"right child node too small for splitting, so make it a leaf node: {right}")
-            else: # make child node and add to nodelist
-                #right = Node(f"R{split_nr}", parent=current_node, indices=indices_right, leaf=False)
-                #print(f"right child = {right}, with corresponding class label vector = {y[indices_right]}")
+            else: # add to nodelist
                 right.leaf = False
                 nodelist.append(right)
-                #print(f"right child node {right} added to nodelist: \n {nodelist}")
-            print(f"Finished processing node, tree now looks as follows: \n {RenderTree(root)}")
-    print(f"\n TREE DONE: \n {RenderTree(root)}")
+            #print(f"Finished processing node, tree now looks as follows: \n {RenderTree(root)}")
+    print(f"\n TREE DONE: ")#\n {RenderTree(root)}")
     return root
+
+def tree_pred(x, tr):
+    # INPUT: x (2-d array) = data matrix; tr = tree object
+    # OUTPUT: y (1-d array) vector of predicted class labels for each row in x
+    print(f"TREE_PRED started")#for x = \n {x}")
+    n_rows = x.shape[0] # number of rows
+    #print(f"matrix x {x.shape} has n_rows = {n_rows}")
+    y = np.zeros(n_rows)
+    for i in np.arange(0, n_rows): # for each row = record in x, go down tree
+        #print(f"\n PROCESSING new row {x[i,:]} of x")
+        node = tr # start at root node
+        while not node.leaf: # repeat until we have reached a leaf node
+            split_feat = node.split_feat # column number this node is split on
+            split_val = node.split_val # value this node is split on
+            #print(f"Not a leaf node, so splitting from \n {node}")
+            if x[i, split_feat] > split_val: # go to left child node
+                node = node.left
+                #print(f"Going in LEFT child node")
+            else:
+                node = node.right
+                #print(f"Going into RIGHT child node")
+        y[i] = node.prediction
+        #print(f"Found leaf node {node}, predicting {y[i]}")
+    print("FINISHED with tree_pred")
+    return y
 
 def impurity(x):
     # input binary vector of class labels
@@ -122,7 +140,7 @@ def bestsplit_of_col(x, y, minleaf):
         indices_left = np.arange(0, len(x)) [x > s] # take row index of elements in x with value > s
         indices_right = np.delete(np.arange(0, len(x)), indices_left)  # make list of indices & remove those in indices_left
         if (len(indices_left) < minleaf) or (len(indices_right) < minleaf):
-            print(f"Child node {indices_left} or {indices_right} would be too small; no split allowed")
+            #print(f"Child node {indices_left} or {indices_right} would be too small; no split allowed")
             continue
         left_child = y[indices_left]
         #print(f"indices_left = {indices_left}")
@@ -135,6 +153,26 @@ def bestsplit_of_col(x, y, minleaf):
             best_split_val = s
     #print(f"Best split at value {best_split_val} with impurity reduction {max_imp_red}")
     return [max_imp_red, best_split_val]
+
+def confusion_matrix(y_pred, y_true):
+    #INPUT: y_pred = vector of predicted class labels; y_true = vector of true class labels
+    #OUTPUT: confusion matrix C as 2x2 numpy array:
+    # C[0,0] = proportion of labels predict and truly equal to 0, [0,1] = prop of labels predict 0 but truly 1, etc
+
+    print(f"MAKING CONFUSION MATRIX ")#for \n {y_pred} = predicted, \n {y_true} = true labels")
+    n = len(y_pred)
+    C = np.zeros([2,2])
+    for i in range(n): # for each prediction
+        #print(f"Handling prediction {y_pred[i]} of true label {y_true[i]}")
+        if y_pred[i] and y_true[i]: # y[i] true if = 1
+            C[1,1] +=1
+        elif y_pred[i] and not y_true[i]:
+            C[1,0] +=1
+        elif not y_pred[i] and y_true[i]:
+            C[0,1] +=1
+        else: # y_pred and y_true both = 0
+            C[0,0] +=1
+    return C
 
 # TODO: maybe split up tree_grow function, adding function below which finds the best split,
 #  and adding another function which performs the best split
@@ -166,14 +204,31 @@ def edgeattrfunc(parent, child):
 
 
 credit_data = np.genfromtxt('credit.txt', delimiter=',', skip_header=True)
-x = credit_data[:,0:5]
-y = credit_data[:,5]
-#pima = np.genfromtxt('pima.txt', delimiter=',', skip_header=False)
-#x = pima[0:100,0:pima.shape[1]-1]
-#y = pima[0:100,pima.shape[1]-1]
-tree = tree_grow(x, y, nfeat=x.shape[1], nmin = 2, minleaf=1)
-DotExporter(tree).to_picture("tree_only.png") # works!
-DotExporter(tree, nodeattrfunc=nodeattrfunc, edgeattrfunc=edgeattrfunc).to_picture("credit_tree.png")
+x_train = credit_data[0:8,0:5]
+y_train = credit_data[0:8,5]
+x_test = credit_data[8:10,0:5]
+y_test = credit_data[8:10, 5]
+tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 2, minleaf=1)
+
+'''
+pima = np.genfromtxt('pima.txt', delimiter=',', skip_header=False)
+#x_train = pima[0:400,0:8]
+#y_train = pima[0:400, 8]
+#x_test = pima[400:767, 0:8]
+#y_test = pima[400:767, 8]
+# testing as in assignment to compare confusion matrices:
+x_train = pima[:,0:8]
+y_train = pima[:,8]
+x_test = x_train
+y_test = y_train
+tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
+'''
+y_pred  = tree_pred(x_test, tree)
+#print(f"For x = \n {x_test} \n {y_pred} = tree predicted labels  \n {y_test} = true labels")
+C = confusion_matrix(y_pred, y_test)
+print(f"Confusion matrix for prediction = \n {C}")
+#DotExporter(tree).to_picture("tree_only2.png") # works!
+#DotExporter(tree, nodeattrfunc=nodeattrfunc, edgeattrfunc=edgeattrfunc).to_picture("credit_tree2.png")
 
 
 
