@@ -84,6 +84,24 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     print(f"\n TREE DONE: \n {RenderTree(root)}")
     return root
 
+def tree_pred(x,tr):
+    #input: x, matrix of attribute values of the cases for which predictions are required
+    #       tr, root of prediction tree
+    #output: vector of predicted class labels for the cases in x
+    
+    n_pred = len(x)
+    y = np.empty(n_pred)
+    
+    for i in range(n_pred):   #perform a prediction per each case
+        current_node=tr
+        while current_node.leaf == False :  
+            if x[i,current_node.split_feat] > current_node.split_val:
+                current_node = current_node.children[0] #go to left child
+            else :
+                current_node = current_node.children[1] #go to right child
+        y[i] = current_node.prediction
+    return y
+ 
 def impurity(x):
     # input binary vector of class labels
     # output impurity of that node according to Gini index function
@@ -164,6 +182,17 @@ def edgeattrfunc(parent, child):
     else: # we have a right child
         return f'label= "x[:,{parent.split_feat}] \u2264 {parent.split_val}"' # \u2264 is python source code for <=
 
+def confusion_matrix(x_true,x_pred):
+    #input: x_true, vector of true class labels of attributes in x
+    #       x_pred, vector of predicted class labels for the cases in x
+    #ouput: 2x2 array, confusion matrix
+    T = np.array(x_true,dtype=int)
+    P = np.array(x_pred,dtype=int)
+    cM = np.zeros((2,2))
+    
+    for i in range(len(x_true)):
+        cM[T[i],P[i]] += 1
+    return cM
 
 credit_data = np.genfromtxt('credit.txt', delimiter=',', skip_header=True)
 x = credit_data[:,0:5]
@@ -174,7 +203,8 @@ y = credit_data[:,5]
 tree = tree_grow(x, y, nfeat=x.shape[1], nmin = 2, minleaf=1)
 DotExporter(tree).to_picture("tree_only.png") # works!
 DotExporter(tree, nodeattrfunc=nodeattrfunc, edgeattrfunc=edgeattrfunc).to_picture("credit_tree.png")
-
+prediction = tree_pred(x,tree)
+CM=confusion_matrix(y,prediction)
 
 
 ## Testing functions
