@@ -4,13 +4,16 @@ from anytree import NodeMixin, Node, RenderTree
 from anytree.exporter import DotExporter
 
 def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
-    ## Input: x (2D array) = data matrix; y (1D array) = binary class labels;
-    # nmin (int) = min # observations a node must contain for it to be allowed to split;
-    # minleaf (int) = min # observations required for a leaf node; nfeat (int) = # features to be considered for each split
-    ## Output: tree object based on best splits of gini index impurity reduction function
-
-    #print(f"x= \n {x}")
-    #print(f"y = {y}")
+    """
+    Parameters:
+        x (2D array): Data matrix
+        y (1D array): Binary class labels
+        nmin (int): Min # observations a node must contain for it to be allowed to split
+        minleaf (int): Min # observations required for a leaf node
+        nfeat (int): # features to be considered for each split
+    Returns:
+        Tree object based on best splits of gini index impurity reduction function
+    """
     # each node has a name, list of indices (records), and "leaf" boolean attribute
     root = Node('root', indices = np.arange(0, x.shape[0]), leaf = False)
     nodelist = [root]
@@ -85,10 +88,13 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     return root
 
 def tree_pred(x,tr):
-    #input: x, matrix of attribute values of the cases for which predictions are required
-    #       tr, root of prediction tree
-    #output: vector of predicted class labels for the cases in x
-    
+   """
+    Parameters:
+        x (2D array): Attribute data matrix 
+        tr (AnyTree): Clasification tree object
+    Returns:
+        List of predicted labels.
+    """
     n_pred = len(x)
     y = np.empty(n_pred)
     
@@ -101,17 +107,81 @@ def tree_pred(x,tr):
                 current_node = current_node.children[1] #go to right child
         y[i] = current_node.prediction
     return y
- 
+
+def tree_grow_b(x, y, nfeat, nmin, minleaf,m):
+    
+    """
+     Parameters:
+        x (2D array): Data matrix
+        y (1D array): Binary class labels
+        nmin (int): Min # observations a node must contain for it to be allowed to split
+        minleaf (int): Min # observations required for a leaf node
+        nfeat (int): # features to be considered for each split
+        m (int): number of bootstrap samples to be drawn
+     Returns:
+        list containing m tree objects based on best splits of gini index impurity reduction function
+    """
+    sample_size = x.shape[0]
+    tree_list = list()
+
+    for i in range(m):
+        #draw a bootstrap sample WITH REPLACEMENT
+        index = np.random.choice(np.arange(0, sample_size), size=sample_size, replace=True)
+        x_b = x[index,]
+        y_b = y[index]
+
+    #grow a tree from the sample
+    tree = tree_grow(x_b, y_b, nfeat, nmin, minleaf)
+
+    tree_list.append(tree)
+    return tree_list
+        
+def tree_pred_b (x,treelist):
+    
+    """
+    Parameters:
+        x (2D array): Data matrix
+        treelist (list): list of tree objects
+    Returns:
+        vector of predicted labels
+    """
+    m = len(treelist)
+    ndata = x.shape[0]
+    A = np.empty((m,ndata)) #matrix of all predictions from each tree
+    prediction = np.empty(ndata)
+
+    #compute m predictions for each data using treelist
+    for i in range(m):
+        tree = treelist[i]
+        A[i,:] = tree_pred(x,tree)
+
+    #make effective prediction with the majority vote 
+    v = A.sum(axis=0)/m
+    for i in range(ndata):
+        if v[i] >= 0.5:
+            prediction[i] = 1
+        else:
+            prediction[i] = 0
+    return prediction
 def impurity(x):
-    # input binary vector of class labels
-    # output impurity of that node according to Gini index function
+   """
+    Parameters:
+        x: Input binary vector of class labels
+    Returns:
+        Impurity of that node according to Gini index function
+    """
     n = len(x) # records in node
     impurity = sum(x)*(n-sum(x))/(n**2)
     return impurity
 
 def impurity_reduction(parent, left_child, right_child):
-    # input binary class label vectors of parent node, and 2 child nodes of possible split
-    # output impurity reduction value of that split
+    """
+    Parameters:
+        binary class label vectors of parent node
+        2 child nodes of possible split
+    Returns:
+        Impurity reduction value of that split
+    """
     impurity_parent = impurity(parent)
     #print(f"\nComputing impurity reduction of splitting parent {parent} = {impurity_parent}")
     impurity_l = impurity(left_child)
@@ -122,8 +192,15 @@ def impurity_reduction(parent, left_child, right_child):
     return imp_red
 
 def bestsplit_of_col(x, y, minleaf):
-    # input: x= numeric attribute vector; y = class label vector, minleaf = minimum size allowed for leaf node
-    # output: best split (highest impurity reduction) & split value
+    
+    """
+    Parameters:
+        x: numeric attribute vector
+        y: class label vector
+        minleaf: minimum size allowed for leaf node
+    Returns:
+        Best split (highest impurity reduction) & split value
+    """
     x_sorted = np.sort(np.unique(x))    #sort x in increasing order, with only unique values
     #print(f"Finding the best split of numeric attribute vector: {x} for the class label vector: {y}")
     #print(f"sorted vector: \n {x_sorted}")
