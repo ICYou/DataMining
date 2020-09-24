@@ -34,7 +34,8 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
         if not poss_splits: # no possible split found
             current_node.leaf = True
             # add class prediction label to leaf node:
-            if sum(current_node.indices)/len(current_node.indices) > 0.5:
+            current_node.y = y[current_node.indices]
+            if sum((current_node.y) / len(current_node.y)) > 0.5:
                 current_node.prediction = 1
             else:
                 current_node.prediction = 0
