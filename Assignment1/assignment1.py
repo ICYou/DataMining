@@ -128,30 +128,14 @@ def tree_grow_b(x, y, m, nfeat, nmin = 2, minleaf = 1):
     while (i != m):
         i+=1
         print(f"Bootstrap {i}")
-        tree = bootstrapped_tree(x,y, nfeat, nmin, minleaf)
+        n_samples = x.shape[0]
+        ind = np.random.randint(n_samples, size=n_samples)  # list of indices for bootstrap sample
+        sample_x = x[ind, :]
+        sample_y = y[ind]
+        tree = tree_grow(sample_x, sample_y, nfeat, nmin, minleaf)
         trees.append(tree)
     return trees
 
-def bootstrapped_tree(x, y, nfeat, nmin = 2, minleaf = 1):
-    """
-        Input parameters:
-            x (2D array): Data matrix
-            y (1D array): Binary class labels
-            nmin (int): Min # observations a node must contain for it to be allowed to split
-            minleaf (int): Min # observations required for a leaf node
-            nfeat (int): # features to be considered for each split
-        Outputs:
-            Tree object made from a bootstrapped sample of x
-        """
-    print(f"MAKING BOOTSTRAP SAMPLE AND TREE")
-    n_samples = x.shape[0]
-    ind = np.random.randint(n_samples, size=n_samples) # list of indices for bootstrap sample
-    sample_x = x[ind,:]
-    sample_y = y[ind]
-    #print(f"sample_x = \n{sample_x} \n y= {sample_y}")
-    tree = tree_grow(sample_x, sample_y, nfeat, nmin, minleaf)
-    #print(RenderTree(tree))
-    return tree
 
 def tree_pred_b(x, trees):
     """
@@ -291,13 +275,13 @@ def confusion_matrix(y_true,y_pred):
         cM[T[i],P[i]] += 1
     return cM
 
-'''
+
 credit_data = np.genfromtxt('credit.txt', delimiter=',', skip_header=True)
 x_train = credit_data[0:8,0:5]
 y_train = credit_data[0:8,5]
 x_test = credit_data[8:10,0:5]
 y_test = credit_data[8:10, 5]
-tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 2, minleaf=1)
+#tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 2, minleaf=1)
 
 '''
 
@@ -312,20 +296,21 @@ y_test = pima[400:767, 8]
 #y_train = pima[:,8]
 #x_test = x_train
 #y_test = y_train
-
+'''
 
 trees = tree_grow_b(x_train, y_train, 5, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
 y_pred = tree_pred_b(x_test, trees)
 C = confusion_matrix(y_test, y_pred)
 print(f"Confusion matrix for with bootstrapped samples = \n {C}")
 
+'''
 tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
 y_pred  = tree_pred(x_test, tree)
 #print(f"For x = \n {x_test} \n {y_pred} = tree predicted labels  \n {y_test} = true labels")
 C = confusion_matrix(y_test, y_pred)
 print(f"Confusion matrix with just 1 tree (without bootstrapping) = \n {C}")
 
-'''
+
 
 tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
 
