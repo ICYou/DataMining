@@ -4,11 +4,16 @@ from anytree import NodeMixin, Node, RenderTree
 from anytree.exporter import DotExporter
 
 def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
-    # INPUT: x (2D array) = data matrix; y (1D array) = binary class labels;
-    # nmin (int) = min # observations a node must contain for it to be allowed to split;
-    # minleaf (int) = min # observations required for a leaf node; nfeat (int) = # features to be considered for each split
-    # OUTPUT: tree object based on best splits of gini index impurity reduction function
-
+    """
+    Input parameters:
+        x (2D array): Data matrix
+        y (1D array): Binary class labels
+        nmin (int): Min # observations a node must contain for it to be allowed to split
+        minleaf (int): Min # observations required for a leaf node
+        nfeat (int): # features to be considered for each split
+    Outputs:
+        Tree object based on best splits of gini index impurity reduction function
+    """
     print("GROWING CLASSIFICATION TREE")
     # each node has a name, list of indices (records), and "leaf" boolean attribute
     root = Node('root', indices = np.arange(0, x.shape[0]), leaf = False)
@@ -73,12 +78,18 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
                 right.leaf = False
                 nodelist.append(right)
             #print(f"Finished processing node, tree now looks as follows: \n {RenderTree(root)}")
-    print(f"\n TREE DONE: ")#\n {RenderTree(root)}")
+    #print(f"TREE DONE")#\n {RenderTree(root)}")
     return root
 
 def tree_pred(x, tr):
-    # INPUT: x (2-d array) = data matrix; tr = tree object
-    # OUTPUT: y (1-d array) vector of predicted class labels for each row in x
+    """
+   Input parameters:
+       x (2D array): Attribute data matrix
+       tr (AnyTree): Classification tree object
+   Outputs:
+       List of predicted labels.
+   """
+
     print(f"TREE_PRED started")#for x = \n {x}")
     n_rows = x.shape[0] # number of rows
     #print(f"matrix x {x.shape} has n_rows = {n_rows}")
@@ -96,19 +107,91 @@ def tree_pred(x, tr):
                 #print(f"Going into RIGHT child node")
         y[i] = node.prediction
         #print(f"Found leaf node {node}, predicting {y[i]}")
-    print("FINISHED with tree_pred")
+    #print("FINISHED with tree_pred")
     return y
 
+def tree_grow_b(x, y, m, nfeat, nmin = 2, minleaf = 1):
+    """
+    Input parameters:
+        x (2D array): Data matrix
+        y (1D array): Binary class labels
+        m (int): number of bootstrapped trees to be made
+        nmin (int): Min # observations a node must contain for it to be allowed to split
+        minleaf (int): Min # observations required for a leaf node
+        nfeat (int): # features to be considered for each split
+    Outputs:
+        List of tree objects made from bootstrap samples, each based on best splits of gini index impurity reduction function
+    """
+    print(f"STARTING TREE_GROW_B, making {m} bootstrap samples and growing a new tree for each sample")
+    trees = [] # list will contain m trees grown from bootstrap samples
+    i=0
+    while (i != m):
+        i+=1
+        print(f"Bootstrap {i}")
+        tree = bootstrapped_tree(x,y, nfeat, nmin, minleaf)
+        trees.append(tree)
+    return trees
+
+def bootstrapped_tree(x, y, nfeat, nmin = 2, minleaf = 1):
+    """
+        Input parameters:
+            x (2D array): Data matrix
+            y (1D array): Binary class labels
+            nmin (int): Min # observations a node must contain for it to be allowed to split
+            minleaf (int): Min # observations required for a leaf node
+            nfeat (int): # features to be considered for each split
+        Outputs:
+            Tree object made from a bootstrapped sample of x
+        """
+    print(f"MAKING BOOTSTRAP SAMPLE AND TREE")
+    n_samples = x.shape[0]
+    ind = np.random.randint(n_samples, size=n_samples) # list of indices for bootstrap sample
+    sample_x = x[ind,:]
+    sample_y = y[ind]
+    #print(f"sample_x = \n{sample_x} \n y= {sample_y}")
+    tree = tree_grow(sample_x, sample_y, nfeat, nmin, minleaf)
+    #print(RenderTree(tree))
+    return tree
+
+def tree_pred_b(x, trees):
+    """
+    Input parameters:
+        x (2D array): Attribute data matrix
+        trees: list of tree objects
+    Outputs:
+        list of predicted labels obtained by majority vote of predictions from trees
+    """
+    n_trees = len(trees) # number of bootstrapped trees
+    y_predictions = []
+    for tree in trees:
+        y_pred = tree_pred(x,tree)
+        #print(f"New prediction = {y_pred}")
+        y_predictions.append(y_pred)
+    y_predictions = np.array(y_predictions) # convert list to array
+    #print(f"Prediction matrix = \n {y_predictions}")
+    # take mean for each column of y_predictions, and see whether mean < 0.5 -> assign prediction = 0
+    final_pred = list(map(lambda v: 0 if v < 0.5 else 1, np.sum(y_predictions, axis=0)/n_trees))
+    #print(f"final_pred = {final_pred}")
+    return final_pred
+
 def impurity(x):
-    # input binary vector of class labels
-    # output impurity of that node according to Gini index function
+    """
+    Input parameter:
+        x: binary vector of class labels
+    Outputs:
+        Impurity of that node according to Gini index function
+    """
     n = len(x) # records in node
     impurity = sum(x)*(n-sum(x))/(n**2)
     return impurity
 
 def impurity_reduction(parent, left_child, right_child):
-    # input binary class label vectors of parent node, and 2 child nodes of possible split
-    # output impurity reduction value of that split
+    """
+    Input parameters:
+        parent: left_child, right_child: binary class label vectors of parent node and of 2 child nodes of possible split
+    Outputs:
+        Impurity reduction value of that split
+    """
     impurity_parent = impurity(parent)
     #print(f"\nComputing impurity reduction of splitting parent {parent} = {impurity_parent}")
     impurity_l = impurity(left_child)
@@ -119,8 +202,14 @@ def impurity_reduction(parent, left_child, right_child):
     return imp_red
 
 def bestsplit_of_col(x, y, minleaf):
-    # input: x= numeric attribute vector; y = class label vector, minleaf = minimum size allowed for leaf node
-    # output: best split (highest impurity reduction) & split value
+    """
+    Input parameters:
+        x: numeric attribute vector
+        y: class label vector
+        minleaf: minimum size allowed for leaf node
+    Outputs:
+        Best split (highest impurity reduction) & split value
+    """
     x_sorted = np.sort(np.unique(x))    #sort x in increasing order, with only unique values
     #print(f"Finding the best split of numeric attribute vector: {x} for the class label vector: {y}")
     #print(f"sorted vector: \n {x_sorted}")
@@ -168,20 +257,32 @@ def multivariate_best_splits(x, y, current_node, minleaf, feat_list):
 '''
 
 def nodeattrfunc(node):
+    """
+    Input parameter: node
+    Outputs: string for labeling that node in the tree picture
+    """
     if node.leaf:
         return f'label = "LEAF {node.name}:\n ind = {node.indices} \n labels = {node.y} \n prediction = {node.prediction}", shape="diamond"'
     else:
         return f'label = "Node {node.name}:\n ind = {node.indices}"'    # works!
 
 def edgeattrfunc(parent, child):
+    """
+    Input parameters: parent and child node
+    Outputs: string to label edge between these nodes in the tree picture
+    """
     if 'L' in child.name: # we have a left child
         return f'label= "x[:,{parent.split_feat}] > {parent.split_val}"'
     else: # we have a right child
         return f'label= "x[:,{parent.split_feat}] \u2264 {parent.split_val}"' # \u2264 is python source code for <=
 
 def confusion_matrix(y_true,y_pred):
-    #INPUT: y_pred = vector of predicted class labels; y_true = vector of true class labels
-    #OUTPUT: 2x2 array, confusion matrix
+    """
+    Input parameters:
+        y_true: binary vector of true class labels
+        y_pred: binary vector of predicted labels
+    Outputs: (2x2 array) confusion matrix
+    """
     T = np.array(y_true,dtype=int)
     P = np.array(y_pred,dtype=int)
     cM = np.zeros((2,2))
@@ -190,6 +291,7 @@ def confusion_matrix(y_true,y_pred):
         cM[T[i],P[i]] += 1
     return cM
 
+'''
 credit_data = np.genfromtxt('credit.txt', delimiter=',', skip_header=True)
 x_train = credit_data[0:8,0:5]
 y_train = credit_data[0:8,5]
@@ -198,21 +300,39 @@ y_test = credit_data[8:10, 5]
 tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 2, minleaf=1)
 
 '''
+
+
 pima = np.genfromtxt('pima.txt', delimiter=',', skip_header=False)
-#x_train = pima[0:400,0:8]
-#y_train = pima[0:400, 8]
-#x_test = pima[400:767, 0:8]
-#y_test = pima[400:767, 8]
+x_train = pima[0:400,0:8]
+y_train = pima[0:400, 8]
+x_test = pima[400:767, 0:8]
+y_test = pima[400:767, 8]
 # testing as in assignment to compare confusion matrices:
-x_train = pima[:,0:8]
-y_train = pima[:,8]
-x_test = x_train
-y_test = y_train
+#x_train = pima[:,0:8]
+#y_train = pima[:,8]
+#x_test = x_train
+#y_test = y_train
+
+
+trees = tree_grow_b(x_train, y_train, 5, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
+y_pred = tree_pred_b(x_test, trees)
+C = confusion_matrix(y_test, y_pred)
+print(f"Confusion matrix for with bootstrapped samples = \n {C}")
+
 tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
+y_pred  = tree_pred(x_test, tree)
+#print(f"For x = \n {x_test} \n {y_pred} = tree predicted labels  \n {y_test} = true labels")
+C = confusion_matrix(y_test, y_pred)
+print(f"Confusion matrix with just 1 tree (without bootstrapping) = \n {C}")
+
 '''
+
+tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
+
 y_pred  = tree_pred(x_test, tree)
 #print(f"For x = \n {x_test} \n {y_pred} = tree predicted labels  \n {y_test} = true labels")
 C = confusion_matrix(y_test, y_pred)
 print(f"Confusion matrix for prediction = \n {C}")
 #DotExporter(tree).to_picture("tree_only2.png") # works!
 #DotExporter(tree, nodeattrfunc=nodeattrfunc, edgeattrfunc=edgeattrfunc).to_picture("credit_tree2.png")
+'''
