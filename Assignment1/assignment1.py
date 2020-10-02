@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from anytree import NodeMixin, Node, RenderTree
+import pandas as pd
 from anytree.exporter import DotExporter
 
 def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
@@ -15,6 +16,8 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
         Tree object based on best splits of gini index impurity reduction function
     """
     print("GROWING CLASSIFICATION TREE")
+    #print(f" x type = {type(x)}, y type = {type(y)}")
+    #print(f"for x = {x[0:20]}, y={y[0:20]}, nmin = {nmin}, minleaf = {minleaf}")
     # each node has a name, list of indices (records), and "leaf" boolean attribute
     root = Node('root', indices = np.arange(0, x.shape[0]), leaf = False)
     nodelist = [root]
@@ -22,14 +25,17 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     while nodelist: # while nodelist not empty
         split_nr += 1
         current_node = nodelist.pop(0)  # get node from nodelist TODO: choose random node or first on list?
+        #print(f"Processing node  {current_node}")
         # TODO: skip this if nfeat not specified? Adjust optional nfeat in tree_grow def
         if nfeat:
             feat_list = random.sample(list(np.arange(0, x.shape[1])), k=nfeat)  # randomly draw nfeat col indices from # cols of x
         else:
             feat_list = list(np.arange(0, x.shape[1]))  # feat_list is simply indices of all columns of x (except first = indices)
+        #print(f"feat_list = {feat_list}")
         poss_splits = []  # will contain for each feature index (in col1), the impurity reduction (col2) & split value (col3) of the best split
         for f in feat_list:
             # find the best split (based on gini index) for rows of x specific by current_node.indices list, based on col f
+            #print(f"Finding best split of column {f}")
             [reduction_val, split_val] = bestsplit_of_col(x[current_node.indices, f], y[current_node.indices], minleaf)
             if reduction_val != 0:  # if found a split which is allowed, then this is the best split for feature f
                 poss_splits.append([f, reduction_val, split_val])
@@ -74,7 +80,7 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
             else: # add to nodelist
                 right.leaf = False
                 nodelist.append(right)
-    #print(f"TREE DONE")#\n {RenderTree(root)}")
+    print(f"TREE DONE")#\n {RenderTree(root)}")
     return root
 
 def tree_pred(x, tr):
@@ -175,6 +181,7 @@ def bestsplit_of_col(x, y, minleaf):
     Outputs:
         Best split (highest impurity reduction) & split value
     """
+    #print(f"Finding best split of {x} for {y}")
     x_sorted = np.sort(np.unique(x))    #sort x in increasing order, with only unique values
     if len(x_sorted) == 1: # All values of vector x are identical
         return [0,0]
@@ -194,22 +201,6 @@ def bestsplit_of_col(x, y, minleaf):
             max_imp_red = imp_red
             best_split_val = s
     return [max_imp_red, best_split_val]
-
-# TODO: maybe split up tree_grow function, adding function below which finds the best split,
-#  and adding another function which performs the best split
-'''
-def multivariate_best_splits(x, y, current_node, minleaf, feat_list):
-    # input: data matrix x, class label vector y, minleaf, and featlist = list of columns of x to consider for split
-    # output: array with each row = [f, imp_red, split_val]
-    # where f = feature index, imp_red = impurity reduction, split_val = value to split for best impurity reduction of that feature
-    poss_splits = []  # will contain for each feature index (in col1), the impurity reduction (col2) & split value (col3) of the best split
-    for f in feat_list:
-        # print(f"Finding best split for column feature {f}")
-        # find the best split (based on gini index) for rows of x specific by current_node.indices list, based on col f
-        [reduction_val, split_val] = bestsplit_of_col(x[current_node.indices, f], y[current_node.indices], minleaf)
-        if reduction_val != 0:  # if found a split which is allowed, then this is the best split for feature f
-            poss_splits.append([f, reduction_val, split_val])
-'''
 
 def nodeattrfunc(node):
     """
@@ -254,9 +245,47 @@ def compute_metrics(y_true,y_pred):
     recall = TP/(TP+FN)
     return [accuracy, precision, recall, cM]
 
+def process_csv(path):
+    # print(f"Handling file in path {path}")
+
+    data = pd.read_csv(path, sep=';')
+    column_names = data.columns
+    predictor_names = ['FOUT', 'MLOC', 'NBD', 'PAR', 'VG', 'NOF', 'NOM', 'NSF', 'NSM', 'ACD', 'NOI', 'NOT', 'TLOC',
+                       'NOCU']
+    # TODO add # pre-release bugs to #predictors, then re-run models
+    # select all columns name containing any of the strings in the above list:
+    select_predictors = [col for col in data.columns if any(x in col for x in predictor_names)]
+
+    X = data[select_predictors]
+    post_bugs = data['post']  # number of post-release bugs
+    y_train = [y if y == 0 else 1 for y in post_bugs]
+    y_train = np.array(y_train)
+
+    X = X.to_numpy()  # parse pandas DataFrame to numpy array
+    return [X, y_train]
 
 
+[X_train, y_train] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-2.0.csv")
+[X_test, y_test] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-3.0.csv")
 
+# Single tree:
+# tree = function_file.tree_grow(X_train, y_train, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
+# y_pred = function_file.tree_pred(X_test, tree)
+
+# Bagging:
+# trees = function_file.tree_grow_b(X_train, y_train, 100, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
+# y_pred = function_file.tree_pred_b(X_test, trees)
+
+# Random Forest:
+trees = tree_grow_b(X_train, y_train, 100, nfeat=6, nmin=15, minleaf=5)
+y_pred = tree_pred_b(X_test, trees)
+
+# Model performance:
+[accuracy, precision, recall, cM] = compute_metrics(y_test, y_pred)
+print(f"Metrics for the model are:\n accuracy = {accuracy}, precision = {precision}, recall = {recall}, confusion matrix = \n {cM}")
+
+
+'''
 # Test on credit_data:
 credit_data = np.genfromtxt('credit.txt', delimiter=',', skip_header=True)
 x_train = credit_data[0:8,0:5]
@@ -266,7 +295,6 @@ y_test = credit_data[8:10, 5]
 tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 2, minleaf=1)
 #trees = tree_grow_b(x_train, y_train, 5, nfeat=x_train.shape[1], nmin = 2, minleaf=1)
 
-'''
 # Test on pima data:
 pima = np.genfromtxt('pima.txt', delimiter=',', skip_header=False)
 # split into training and test set:
@@ -281,7 +309,6 @@ y_test = pima[400:767, 8]
 #y_test = y_train
 #tree = tree_grow(x_train, y_train, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
 trees = tree_grow_b(x_train, y_train, 5, nfeat=x_train.shape[1], nmin = 20, minleaf=5)
-'''
 
 
 y_pred  = tree_pred(x_test, tree)
@@ -293,3 +320,4 @@ print(f"Metrics for the model are:\n accuracy = {accuracy}, precision = {precisi
 # exporting tree to png image (only useful for small trees)
 #DotExporter(tree).to_picture("tree_only2.png")
 #DotExporter(tree, nodeattrfunc=nodeattrfunc, edgeattrfunc=edgeattrfunc).to_picture("credit_tree2.png")
+'''
