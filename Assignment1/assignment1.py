@@ -31,15 +31,10 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
             feat_list = random.sample(list(np.arange(0, x.shape[1])), k=nfeat)  # randomly draw nfeat col indices from # cols of x
         else:
             feat_list = list(np.arange(0, x.shape[1]))  # feat_list is simply indices of all columns of x (except first = indices)
-        #print(f"feat_list = {feat_list}")
-        poss_splits = []  # will contain for each feature index (in col1), the impurity reduction (col2) & split value (col3) of the best split
-        for f in feat_list:
-            # find the best split (based on gini index) for rows of x specific by current_node.indices list, based on col f
-            #print(f"Finding best split of column {f}")
-            [reduction_val, split_val] = bestsplit_of_col(x[current_node.indices, f], y[current_node.indices], minleaf)
-            if reduction_val != 0:  # if found a split which is allowed, then this is the best split for feature f
-                poss_splits.append([f, reduction_val, split_val])
-        if not poss_splits: # no possible split found
+        
+        [feat, split_val] = best_split(current_node, feat_list, minleaf)
+        
+        if feat == None and split_value == None : # no possible split found
             current_node.leaf = True
             # add class prediction label to leaf node:
             current_node.y = y[current_node.indices]
@@ -47,11 +42,7 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
                 current_node.prediction = 1
             else:
                 current_node.prediction = 0
-        else: # choose split with highest impurity reduction:
-            poss_splits.sort(key = lambda x: x[1], reverse = True) # sort poss_splits list by the 2nd column (reduction values) in descending order
-            # TODO: add tiebraker in case of 2 features with identical impurity reduction -> look up previous features via parent?
-            feat = poss_splits[0][0]
-            split_val = poss_splits[0][2]
+        else: # choose split with highest impurity reduction
             current_node.split_feat = feat # add feature (col nr of x) and split value by which node will be split
             current_node.split_val = split_val
             # from indices in current nodes (current_node.indices), select those where value in column f > split_val
@@ -202,6 +193,30 @@ def bestsplit_of_col(x, y, minleaf):
             best_split_val = s
     return [max_imp_red, best_split_val]
 
+def best_split(node, feat_list, minleaf):
+    """
+    Input parameters:
+        node (Node) : Node that has to be splitted
+        feat_list (list): Considered features for the best split
+        minleaf (int): Min # observations required for a leaf node
+    Outputs:
+        Feature chosen for the best split (highest impurity reduction) & split value
+        If there are no possible splits, it returns [None,None] 
+    """
+    poss_splits = []  # will contain for each feature index (in col1), the impurity reduction (col2) & split value (col3) of the best split
+    for f in feat_list:
+        # find the best split (based on gini index) for rows of x specific by current_node.indices list, based on col f
+        #print(f"Finding best split of column {f}")
+        [reduction_val, split_val] = bestsplit_of_col(x[node.indices, f], y[node.indices], minleaf)
+        if reduction_val != 0:  # if found a split which is allowed, then this is the best split for feature f
+            poss_splits.append([f, reduction_val, split_val])
+    if not poss_splits: # no possible split found
+        return [None,None]
+    else: # choose split with highest impurity reduction:
+        poss_splits.sort(key = lambda x: x[1], reverse = True) # sort poss_splits list by the 2nd column (reduction values) in descending order
+        # TODO: add tiebraker in case of 2 features with identical impurity reduction -> look up previous features via parent?
+        return [poss_splits[0][0], poss_splits[0][2]]
+
 def nodeattrfunc(node):
     """
     Input parameter: node
@@ -252,9 +267,8 @@ def process_csv(path):
     column_names = data.columns
     predictor_names = ['FOUT', 'MLOC', 'NBD', 'PAR', 'VG', 'NOF', 'NOM', 'NSF', 'NSM', 'ACD', 'NOI', 'NOT', 'TLOC',
                        'NOCU']
-    # TODO add # pre-release bugs to #predictors, then re-run models
-    # select all columns name containing any of the strings in the above list:
-    select_predictors = [col for col in data.columns if any(x in col for x in predictor_names)]
+    # select all columns name containing any of the strings in the above list plus column 'pre' (pre-bugs) :
+    select_predictors = [col for col in column_names if col == 'pre' or any(x in col for x in predictor_names)]
 
     X = data[select_predictors]
     post_bugs = data['post']  # number of post-release bugs
