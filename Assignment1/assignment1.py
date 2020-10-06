@@ -32,7 +32,7 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
         else:
             feat_list = list(np.arange(0, x.shape[1]))  # feat_list is simply indices of all columns of x (except first = indices)
         
-        [feat, split_val] = best_split(current_node, feat_list, minleaf)
+        [feat, split_val] = best_split(x,y,current_node, feat_list, minleaf)
         
         if feat == None and split_value == None : # no possible split found
             current_node.leaf = True
@@ -193,7 +193,7 @@ def bestsplit_of_col(x, y, minleaf):
             best_split_val = s
     return [max_imp_red, best_split_val]
 
-def best_split(node, feat_list, minleaf):
+def best_split(x,y,node, feat_list, minleaf):
     """
     Input parameters:
         node (Node) : Node that has to be splitted
