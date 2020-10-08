@@ -4,6 +4,9 @@ from anytree import NodeMixin, Node, RenderTree
 import pandas as pd
 from anytree.exporter import DotExporter
 
+limitSingleSplits = 2
+splitcount = 0
+
 def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     """
     Input parameters:
@@ -20,11 +23,13 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     #print(f"for x = {x[0:20]}, y={y[0:20]}, nmin = {nmin}, minleaf = {minleaf}")
     # each node has a name, list of indices (records), and "leaf" boolean attribute
     root = Node('root', indices = np.arange(0, x.shape[0]), leaf = False)
+    root.y = y[root.indices]
     nodelist = [root]
     split_nr = 0 # will be used for node names
     while nodelist: # while nodelist not empty
         split_nr += 1
         current_node = nodelist.pop(0)  # get node from nodelist TODO: choose random node or first on list?
+        
         #print(f"Processing node  {current_node}")
         # TODO: skip this if nfeat not specified? Adjust optional nfeat in tree_grow def
         if nfeat:
@@ -67,6 +72,10 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
                     left.prediction = 0
             else: # add to nodelist
                 left.leaf = False
+                left.y = y[indices_left]
+                left.split_mean = np.mean(x[indices_left, feat])
+                left.split_std = np.std(x[indices_left, feat])
+                print(f'left {left.name}: M: {left.split_mean} SD {left.split_std} \n {(x[indices_left, feat])}')
                 nodelist.append(left)
             indices_right = np.setdiff1d(current_node.indices, indices_left)  # indices_right = indices in current node not in indices_left
             right = Node(f"R{split_nr}", parent=current_node, indices=indices_right)
@@ -79,9 +88,20 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
                     right.prediction = 0
             else: # add to nodelist
                 right.leaf = False
+                right.y = y[indices_right]
+                right.split_mean = np.mean(x[indices_right, feat])
+                right.split_std = np.std(x[indices_right, feat])
                 nodelist.append(right)
+            
+            global splitcount
+            splitcount += 1
+
+            if limitSingleSplits and splitcount >= limitSingleSplits: #early out for generating image for analysing classification rules
+                return root
     print(f"TREE DONE")#\n {RenderTree(root)}")
     return root
+
+
 
 def tree_pred(x, tr):
     """
@@ -208,9 +228,17 @@ def nodeattrfunc(node):
     Outputs: string for labeling that node in the tree picture
     """
     if node.leaf:
-        return f'label = "LEAF {node.name}:\n ind = {node.indices} \n labels = {node.y} \n prediction = {node.prediction}", shape="diamond"'
+        return f'label = "LEAF {node.name}:\n ind = {node.indices} \n labels = {node.y} \n prediction = {node.y}", shape="box"'
     else:
-        return f'label = "Node {node.name}:\n ind = {node.indices}"'    # works!
+        return f'label = "Node {node.name}:\n ind = {node.indices}", shape="box"'    # works!
+
+def nodeattrfuncCount(node):
+    """
+    Input parameter: node
+    Outputs: string for labeling that node in the tree picture
+    """
+    meanString = f'{predictorsTest[node.parent.split_feat]} stats: \n \u03BC: {round(node.split_mean, 3)} | \u03C3: {round(node.split_std,3)}' if hasattr(node, "split_mean") else f''
+    return f'label = "Node {node.name}:\n Elements: {len(node.indices)} \n Prediction: {round(len(node.y[node.y > 0])/len(node.y),3)}({ len(node.y[node.y > 0])}/{len(node.y)}) \n {meanString} ", shape="box"'    # works!
 
 def edgeattrfunc(parent, child):
     """
@@ -218,9 +246,9 @@ def edgeattrfunc(parent, child):
     Outputs: string to label edge between these nodes in the tree picture
     """
     if 'L' in child.name: # we have a left child
-        return f'label= "x[:,{parent.split_feat}] > {parent.split_val}"'
+        return f'label= "x[{predictorsTest[parent.split_feat]}] > {parent.split_val}"'
     else: # we have a right child
-        return f'label= "x[:,{parent.split_feat}] \u2264 {parent.split_val}"' # \u2264 is python source code for <=
+        return f'label= "x[{predictorsTest[parent.split_feat]}] \u2264 {parent.split_val}"' # \u2264 is python source code for <=
 
 def compute_metrics(y_true,y_pred):
     """
@@ -262,27 +290,27 @@ def process_csv(path):
     y_train = np.array(y_train)
 
     X = X.to_numpy()  # parse pandas DataFrame to numpy array
-    return [X, y_train]
+    return [X, y_train, select_predictors]
 
 
-[X_train, y_train] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-2.0.csv")
-[X_test, y_test] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-3.0.csv")
+[X_train, y_train, predictorsTrain] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-2.0.csv")
+[X_test, y_test, predictorsTest] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-3.0.csv")
 
 # Single tree:
-# tree = function_file.tree_grow(X_train, y_train, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
-# y_pred = function_file.tree_pred(X_test, tree)
+tree = tree_grow(X_train, y_train, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
+# y_pred = tree_pred(X_test, tree)
 
 # Bagging:
 # trees = function_file.tree_grow_b(X_train, y_train, 100, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
 # y_pred = function_file.tree_pred_b(X_test, trees)
 
 # Random Forest:
-trees = tree_grow_b(X_train, y_train, 100, nfeat=6, nmin=15, minleaf=5)
-y_pred = tree_pred_b(X_test, trees)
+# trees = tree_grow_b(X_train, y_train, 100, nfeat=6, nmin=15, minleaf=5)
+#y_pred = tree_pred_b(X_test, trees)
 
 # Model performance:
-[accuracy, precision, recall, cM] = compute_metrics(y_test, y_pred)
-print(f"Metrics for the model are:\n accuracy = {accuracy}, precision = {precision}, recall = {recall}, confusion matrix = \n {cM}")
+# [accuracy, precision, recall, cM] = compute_metrics(y_test, y_pred)
+# print(f"Metrics for the model are:\n accuracy = {accuracy}, precision = {precision}, recall = {recall}, confusion matrix = \n {cM}")
 
 
 '''
@@ -318,6 +346,8 @@ print(f"Metrics for the model are:\n accuracy = {accuracy}, precision = {precisi
 
 
 # exporting tree to png image (only useful for small trees)
-#DotExporter(tree).to_picture("tree_only2.png")
-#DotExporter(tree, nodeattrfunc=nodeattrfunc, edgeattrfunc=edgeattrfunc).to_picture("credit_tree2.png")
+
 '''
+# DotExporter(tree).to_picture("tree_only2.png")
+DotExporter(tree, maxlevel=3, nodeattrfunc=nodeattrfunc, edgeattrfunc=edgeattrfunc).to_picture("single_tree.png")
+DotExporter(tree, maxlevel=3, nodeattrfunc=nodeattrfuncCount, edgeattrfunc=edgeattrfunc).to_picture("single_tree_count.png")
