@@ -34,7 +34,7 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
         
         [feat, split_val] = best_split(x,y,current_node, feat_list, minleaf)
         
-        if feat == None and split_value == None : # no possible split found
+        if feat == None and split_val == None : # no possible split found
             current_node.leaf = True
             # add class prediction label to leaf node:
             current_node.y = y[current_node.indices]
@@ -283,16 +283,16 @@ def process_csv(path):
 [X_test, y_test] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-3.0.csv")
 
 # Single tree:
-# tree = function_file.tree_grow(X_train, y_train, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
-# y_pred = function_file.tree_pred(X_test, tree)
+tree = tree_grow(X_train, y_train, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
+y_pred = tree_pred(X_test, tree)
 
 # Bagging:
 # trees = function_file.tree_grow_b(X_train, y_train, 100, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
 # y_pred = function_file.tree_pred_b(X_test, trees)
 
 # Random Forest:
-trees = tree_grow_b(X_train, y_train, 100, nfeat=6, nmin=15, minleaf=5)
-y_pred = tree_pred_b(X_test, trees)
+# trees = tree_grow_b(X_train, y_train, 100, nfeat=6, nmin=15, minleaf=5)
+# y_pred = tree_pred_b(X_test, trees)
 
 # Model performance:
 [accuracy, precision, recall, cM] = compute_metrics(y_test, y_pred)
