@@ -5,7 +5,7 @@ Assignment 1 Data Mining:
     Janneke Hutter 3924734
     Koen Hanneman 5743931
 
-Growing classification trees, bagging and random forest and predict the class label for given attribute values.
+Growing classification trees, bagging and random forest to predict the class label for given attribute values.
 Compute quality measures [accuracy, precision, recall] of classifier and confusion matrix.
 
 """
@@ -13,18 +13,6 @@ import pandas as pd
 import numpy as np
 import random
 from anytree import NodeMixin, Node, RenderTree
-from anytree.exporter import DotExporter
-
-class TNode(Node):
-    def set_leaf(self, y):
-        ''' Sets attributes y, leaf and prediction
-        Input parameter:
-            y (1D array): Binary class labels
-        '''
-        self.y = y
-        self.leaf = True
-        self.prediction = 1 if (sum(y) / len(y)) > 0.5 else 0
-
 
 def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     """ Grows and returns a classification tree
@@ -48,7 +36,7 @@ def tree_grow(x, y, nfeat, nmin = 2, minleaf = 1):
     #nodelist queue
     while nodelist:
         split_nr += 1
-        current_node = nodelist.pop(0)  # get node from nodelist TODO: choose random node or first on list?
+        current_node = nodelist.pop(0)  # get node from nodelist
         
         feat_list = draw_features(x, nfeat)
         [feat, split_val] = best_split(x,y,current_node, feat_list, minleaf) #determine best split
@@ -105,11 +93,11 @@ def tree_pred(x, tr):
             else:
                 node = node.children[1] #go to right child
         y_hat[i] = node.prediction
-        
+
     return y_hat
 
 def tree_grow_b(x, y, m, nfeat, nmin = 2, minleaf = 1):
-    """ Grows trees for bagging and random forrest
+    """ Grows m trees from bootstrap samples for bagging and random forest
 
     Input parameters:
         x (2D array): Data matrix
@@ -152,8 +140,19 @@ def tree_pred_b(x, trees):
     final_pred = list(map(lambda v: 0 if v < 0.5 else 1, np.sum(y_predictions, axis=0)/n_trees))
     return final_pred
 
+class TNode(Node):
+    def set_leaf(self, y):
+        ''' Sets attributes y, leaf and prediction
+        Input parameter:
+            y (1D array): Binary class labels
+        '''
+        self.y = y
+        self.leaf = True
+        self.prediction = 1 if (sum(y) / len(y)) > 0.5 else 0
+
 def impurity(x):
-    """
+    """ Computes the impurity of a binary vector
+
     Input parameter:
         x: binary vector of class labels
     Outputs:
@@ -164,7 +163,8 @@ def impurity(x):
     return impurity
 
 def impurity_reduction(parent, left_child, right_child):
-    """
+    """ Computes the impurity reduction of splitting the parent node into the left_ and right_child nodes
+
     Input parameters:
         parent: left_child, right_child: binary class label vectors of parent node and of 2 child nodes of possible split
     Outputs:
@@ -177,7 +177,8 @@ def impurity_reduction(parent, left_child, right_child):
     return imp_red
 
 def draw_features(x, nfeat):
-    """ 
+    """Draw nfeat features from the columns of x
+
     Input parameters:
         x (2D array): Data matrix
         nfeat (int): # features to be considered for each split
@@ -190,7 +191,8 @@ def draw_features(x, nfeat):
         return list(np.arange(0, x.shape[1]))  # feat_list is simply indices of all columns of x (except first = indices)
 
 def class_prediction(y):
-    """ 
+    """Predict the class of a node by majority vote of y
+
     Input parameters:
         y (Array): vector of class labels in a node
     Outputs:
@@ -200,8 +202,11 @@ def class_prediction(y):
     return 1 if classification_ratio > 0.5 else 0
 
 def best_split(x,y,node, feat_list, minleaf):
-    """
+    """Find the best split of the columns in feat_list of data matrix x for binary vector y
+
     Input parameters:
+        x (2D array): Attribute data matrix
+        y (1D array): Binary class labels
         node (Node) : Node that has to be splitted
         feat_list (list): Considered features for the best split
         minleaf (int): Min # observations required for a leaf node
@@ -223,7 +228,8 @@ def best_split(x,y,node, feat_list, minleaf):
         return [poss_splits[0][0], poss_splits[0][2]] # Return split with highest impurity reduction:
 
 def bestsplit_of_col(x, y, minleaf):
-    """
+    """Find the best split value of column x for binary vector y
+
     Input parameters:
         x: numeric attribute vector
         y: class label vector
@@ -255,9 +261,9 @@ def bestsplit_of_col(x, y, minleaf):
             best_split_val = s
     return [max_imp_red, best_split_val]
 
-
 def nodeattrfunc(node):
-    """
+    """Print descriptory string on node of classifier tree image
+
     Input parameter: node
     Outputs: string for labeling that node in the tree picture
     """
@@ -267,7 +273,8 @@ def nodeattrfunc(node):
         return f'label = "Node {node.name}:\n ind = {node.indices}"'    # works!
 
 def edgeattrfunc(parent, child):
-    """
+    """Print description of node split criteria on image of classifier tree
+
     Input parameters: parent and child node
     Outputs: string to label edge between these nodes in the tree picture
     """
@@ -277,7 +284,8 @@ def edgeattrfunc(parent, child):
         return f'label= "x[:,{parent.split_feat}] \u2264 {parent.split_val}"' # \u2264 is python source code for <=
 
 def compute_metrics(y_true,y_pred):
-    """
+    """Compute the performance metrics of predicted y_pred vs true y_true labels
+
     Input parameters:
         y_true: binary vector of true class labels
         y_pred: binary vector of predicted labels
@@ -301,9 +309,13 @@ def compute_metrics(y_true,y_pred):
     recall = TP/(TP+FN)
     return [accuracy, precision, recall, cM]
 
-
 def process_csv(path):
+    """Process csv file for building a classifier tree
 
+       Input parameters:
+           path (string): path to csv file containing the data
+       Outputs: [X,y] with X = the 2D data matrix, y = the 1D corresponding binary vector of labels
+       """
     data = pd.read_csv(path, sep=';')
     column_names = data.columns
     predictor_names = ['FOUT', 'MLOC', 'NBD', 'PAR', 'VG', 'NOF', 'NOM', 'NSF', 'NSM', 'ACD', 'NOI', 'NOT', 'TLOC',
@@ -320,21 +332,25 @@ def process_csv(path):
     return [X, y_train]
 
 def single_tree():
+    """Make the single tree model"""
     tree = tree_grow(X_train, y_train, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
     y_pred = tree_pred(X_test, tree)
     print_metrics("Single_tree", y_test, y_pred)
 
 def bagging():
+    """Make the bagging model"""
     trees = tree_grow_b(X_train, y_train, 100, nfeat=X_train.shape[1], nmin = 15, minleaf=5)
     y_pred = tree_pred_b(X_test, trees)
     print_metrics("Bagging", y_test, y_pred)
 
-def random_forrest():
+def random_forest():
+    """Make the random forest model"""
     trees = tree_grow_b(X_train, y_train, 100, nfeat=6, nmin=15, minleaf=5)
     y_pred = tree_pred_b(X_test, trees)
     print_metrics("Random_forrest", y_test, y_pred)
 
 def print_metrics(model, y_test, y_pred):
+    """Print the performance metrics of the model"""
     [accuracy, precision, recall, cM] = compute_metrics(y_test, y_pred)
     print(f"Metrics for the {model} are:\n accuracy = {accuracy}, precision = {precision}, recall = {recall}, confusion matrix = \n {cM}")
 
@@ -343,9 +359,9 @@ def print_metrics(model, y_test, y_pred):
 ##Execute Algorithms##
 ######################
 
-# [X_train, y_train] = process_csv("Assignment1/promise-2_0a-packages-csv/eclipse-metrics-packages-2.0.csv")
-# [X_test, y_test] = process_csv("Assignment1/promise-2_0a-packages-csv/eclipse-metrics-packages-3.0.csv")
+#[X_train, y_train] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-2.0.csv")
+#[X_test, y_test] = process_csv("./promise-2_0a-packages-csv/eclipse-metrics-packages-3.0.csv")
 
-# single_tree()
-# bagging()
-# random_forrest()
+#single_tree()
+#bagging()
+#random_forest()
