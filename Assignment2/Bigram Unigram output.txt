@@ -1,0 +1,33 @@
+Bigram Unigram output
+
+
+Naive Bayes trained
+Logistic Regression trained with lambda: [1000.]
+Decision Tree trained with aplha: 0.015438034188034161
+Random Forest trained with hyper-parameters: 110, sqrt
+bigram | tfidf:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.737500             0.875000       0.650000       0.700000
+precision     0.936508             0.886076       0.634146       0.848485
+accuracy      0.843750             0.881250       0.637500       0.787500
+f1            0.825175             0.880503       0.641975       0.767123
+Naive Bayes trained
+Logistic Regression trained with lambda: [1.]
+Decision Tree trained with aplha: 0.00234375
+Random Forest trained with hyper-parameters: 150, auto
+bigram | countvec:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.825000             0.900000       0.750000       0.912500
+precision     0.904110             0.791209       0.631579       0.730000
+accuracy      0.868750             0.831250       0.656250       0.787500
+f1            0.862745             0.842105       0.685714       0.811111
+Naive Bayes trained
+Logistic Regression trained with lambda: [10.]
+Decision Tree trained with aplha: 0.0047168989547038305
+Random Forest trained with hyper-parameters: 130, auto
+bigram | binary:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.775000             0.862500       0.700000       0.875000
+precision     0.911765             0.775281       0.643678       0.707071
+accuracy      0.850000             0.806250       0.656250       0.756250
+f1            0.837838             0.816568       0.670659       0.782123
