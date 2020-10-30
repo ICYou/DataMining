@@ -1,0 +1,60 @@
+Naive Bayes trained with 1255 features
+Logistic Regression trained with lambda: [10.]
+Decision Tree trained with aplha: 0.019087865218129996
+Random Forest trained with hyper-parameters: 140, log2
+unigram | tfidf:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.837500             0.875000       0.725000       0.800000
+precision     0.893333             0.823529       0.630435       0.864865
+accuracy      0.868750             0.843750       0.650000       0.837500
+f1            0.864516             0.848485       0.674419       0.831169
+Naive Bayes trained with 1255 features
+Logistic Regression trained with lambda: [10.]
+Decision Tree trained with aplha: 0.017254483115367286
+Random Forest trained with hyper-parameters: 130, auto
+bigram | tfidf:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.900000             0.937500       0.662500       0.812500
+precision     0.847059             0.797872       0.623529       0.773810
+accuracy      0.868750             0.850000       0.631250       0.787500
+f1            0.872727             0.862069       0.642424       0.792683
+Naive Bayes trained with 150 features
+Logistic Regression trained with lambda: [0.1]
+Decision Tree trained with aplha: 0.01339394291468185
+Random Forest trained with hyper-parameters: 140, sqrt
+unigram | countvec:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.725000             0.850000       0.650000       0.812500
+precision     0.716049             0.781609       0.641975       0.833333
+accuracy      0.718750             0.806250       0.643750       0.825000
+f1            0.720497             0.814371       0.645963       0.822785
+Naive Bayes trained with 1000 features
+Logistic Regression trained with lambda: [0.1]
+Decision Tree trained with aplha: 0.010713206998389069
+Random Forest trained with hyper-parameters: 130, auto
+bigram | countvec:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.912500             0.900000       0.725000       0.837500
+precision     0.811111             0.757895       0.637363       0.788235
+accuracy      0.850000             0.806250       0.656250       0.806250
+f1            0.858824             0.822857       0.678363       0.812121
+Naive Bayes trained with 1255 features
+Logistic Regression trained with lambda: [0.01]
+Decision Tree trained with aplha: 0.01339394291468185
+Random Forest trained with hyper-parameters: 140, sqrt
+unigram | binary:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall            0.85             0.887500       0.750000       0.837500
+precision         0.85             0.755319       0.625000       0.817073
+accuracy          0.85             0.800000       0.650000       0.825000
+f1                0.85             0.816092       0.681818       0.827160
+Naive Bayes trained with 1255 features
+Logistic Regression trained with lambda: [0.1]
+Decision Tree trained with aplha: 0.013393942914681906
+Random Forest trained with hyper-parameters: 130, sqrt
+bigram | binary:
+           Naive Bayes  Logistic Regression  Decision Tree  Random Forest
+recall        0.850000             0.875000       0.650000       0.837500
+precision     0.790698             0.744681       0.641975       0.761364
+accuracy      0.812500             0.787500       0.643750       0.787500
+f1            0.819277             0.804598       0.645963       0.797619
